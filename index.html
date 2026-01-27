@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>flowOS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Golden Thread Header */
+    .golden-thread {
+      background: linear-gradient(90deg, #1a1a2e, #16213e);
+      border-bottom: 2px solid #d4af37;
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 14px;
+      color: #d4af37;
+      letter-spacing: 1px;
+    }
+    .golden-thread input {
+      background: transparent;
+      border: none;
+      color: #d4af37;
+      text-align: center;
+      width: 100%;
+      max-width: 500px;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .golden-thread input:focus { outline: none; }
+    
+    /* Navigation */
+    nav {
+      display: flex;
+      gap: 0;
+      background: #111;
+      border-bottom: 1px solid #222;
+    }
+    nav button {
+      flex: 1;
+      padding: 14px;
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    nav button:hover { color: #888; }
+    nav button.active {
+      color: #fff;
+      background: #1a1a1a;
+      border-bottom: 2px solid #d4af37;
+    }
+    
+    /* Main Content */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 20px;
+    }
+    section { display: none; flex: 1; flex-direction: column; }
+    section.active { display: flex; }
+    
+    /* Daily Log Chat */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+    .message {
+      padding: 14px 18px;
+      border-radius: 12px;
+      max-width: 85%;
+      line-height: 1.5;
+    }
+    .message.bot {
+      background: #1e1e1e;
+      align-self: flex-start;
+      border-left: 3px solid #d4af37;
+    }
+    .message.user {
+      background: #2a4a2a;
+      align-self: flex-end;
+    }
+    .input-area {
+      display: flex;
+      gap: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #222;
+    }
+    .input-area textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      font-size: 15px;
+      resize: none;
+      min-height: 50px;
+    }
+    .input-area textarea:focus { outline: none; border-color: #d4af37; }
+    .input-area button {
+      padding: 12px 20px;
+      background: #d4af37;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .input-area button:hover { background: #e5c04b; }
+    .input-area button.mic {
+      background: #333;
+      color: #fff;
+      padding: 12px 14px;
+    }
+    .input-area button.mic.recording { background: #c0392b; }
+    
+    /* Timer */
+    .timer-display {
+      font-size: 72px;
+      font-weight: 200;
+      text-align: center;
+      padding: 40px 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-mode {
+      text-align: center;
+      font-size: 18px;
+      color: #888;
+      margin-bottom: 20px;
+    }
+    .timer-mode.grind { color: #e74c3c; }
+    .timer-mode.sidequest { color: #2ecc71; }
+    .timer-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .timer-controls button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .timer-controls .start { background: #27ae60; color: #fff; }
+    .timer-controls .pause { background: #f39c12; color: #fff; }
+    .timer-controls .reset { background: #333; color: #fff; }
+    .timer-presets {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .timer-presets button {
+      padding: 8px 16px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #888;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .timer-presets button:hover { border-color: #d4af37; color: #d4af37; }
+    
+    /* Report */
+    .report-section { gap: 16px; }
+    .report-section h2 { color: #d4af37; font-size: 18px; }
+    .logs-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .log-entry {
+      background: #1a1a1a;
+      padding: 14px;
+      border-radius: 8px;
+      border-left: 3px solid #333;
+    }
+    .log-entry .date { color: #888; font-size: 12px; margin-bottom: 8px; }
+    .log-entry p { font-size: 14px; margin: 4px 0; }
+    .log-entry strong { color: #d4af37; }
+    .generate-btn {
+      padding: 14px;
+      background: #d4af37;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .generate-btn:hover { background: #e5c04b; }
+    .generate-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+    .report-output {
+      background: #1a1a1a;
+      padding: 16px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+    }
+    .report-output.visible { display: block; }
+    .copy-btn {
+      padding: 10px;
+      background: #27ae60;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: none;
+    }
+    .copy-btn.visible { display: block; }
+    
+    /* Settings */
+    .settings-section { gap: 20px; }
+    .settings-section label { display: block; margin-bottom: 6px; color: #888; }
+    .settings-section input {
+      width: 100%;
+      padding: 12px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #e0e0e0;
+    }
+    .settings-section input:focus { outline: none; border-color: #d4af37; }
+    .settings-group { margin-bottom: 16px; }
+    .save-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #27ae60;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      display: none;
+    }
+    .save-toast.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="golden-thread">
+    <input type="text" id="goldenThread" placeholder="Your mission statement..." />
+  </div>
+  
+  <nav>
+    <button class="active" data-tab="log">Daily Log</button>
+    <button data-tab="timer">Timer</button>
+    <button data-tab="report">Report</button>
+    <button data-tab="settings">⚙</button>
+  </nav>
+  
+  <main>
+    <!-- Daily Log -->
+    <section id="log" class="active">
+      <div class="chat-container" id="chat"></div>
+      <div class="input-area">
+        <button class="mic" id="micBtn">🎤</button>
+        <textarea id="userInput" placeholder="Type or use voice..." rows="1"></textarea>
+        <button id="sendBtn">Send</button>
+      </div>
+    </section>
+    
+    <!-- Timer -->
+    <section id="timer">
+      <div class="timer-mode" id="timerMode">The Grind</div>
+      <div class="timer-display" id="timerDisplay">45:00</div>
+      <div class="timer-controls">
+        <button class="start" id="startBtn">Start</button>
+        <button class="pause" id="pauseBtn" style="display:none">Pause</button>
+        <button class="reset" id="resetBtn">Reset</button>
+      </div>
+      <div class="timer-presets">
+        <button data-mins="25" data-mode="grind">25m Grind</button>
+        <button data-mins="45" data-mode="grind">45m Grind</button>
+        <button data-mins="15" data-mode="sidequest">15m Quest</button>
+        <button data-mins="30" data-mode="sidequest">30m Quest</button>
+      </div>
+    </section>
+    
+    <!-- Report -->
+    <section id="report" class="report-section">
+      <h2>This Week's Logs</h2>
+      <div class="logs-list" id="logsList"></div>
+      <button class="generate-btn" id="generateBtn">Generate Weekly Report</button>
+      <div class="report-output" id="reportOutput"></div>
+      <button class="copy-btn" id="copyBtn">Copy to Clipboard</button>
+    </section>
+    
+    <!-- Settings -->
+    <section id="settings" class="settings-section">
+      <div class="settings-group">
+        <label>OpenAI API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." />
+      </div>
+      <div class="settings-group">
+        <label>Golden Thread (Mission)</label>
+        <input type="text" id="missionInput" placeholder="Building a life worth living..." />
+      </div>
+    </section>
+  </main>
+  
+  <div class="save-toast" id="toast">Saved!</div>
+  
+  <script>
+    // State
+    const PROMPTS = [
+      { key: 'win', text: "Ready to log the win? What was the single best thing you accomplished today?" },
+      { key: 'grind', text: "What was the hardest thing you had to tackle?" },
+      { key: 'values', text: "Which Core Value did you hit today?\n\n1. Do the right thing for customers & team\n2. Treat others the way you want to be treated\n3. Don't put off for tomorrow what can be done today\n4. Be detail oriented\n5. Run toward challenges\n\nPick one and tell me how." },
+      { key: 'sidequest', text: "Did you get to do a Side Quest? If so, what was it?" },
+      { key: 'next', text: "What is the one thing we must do tomorrow?" }
+    ];
+    
+    let currentPrompt = 0;
+    let todayLog = {};
+    let timerInterval = null;
+    let timerSeconds = 45 * 60;
+    let timerRunning = false;
+    let timerMode = 'grind';
+    
+    // DOM
+    const $ = id => document.getElementById(id);
+    const chat = $('chat');
+    const userInput = $('userInput');
+    const goldenThread = $('goldenThread');
+    const timerDisplay = $('timerDisplay');
+    const timerModeEl = $('timerMode');
+    
+    // Init
+    function init() {
+      loadSettings();
+      loadTodayLog();
+      setupNav();
+      setupChat();
+      setupTimer();
+      setupReport();
+      setupSettings();
+      setupVoice();
+    }
+    
+    function loadSettings() {
+      const mission = localStorage.getItem('flowos_mission') || 'Bring SteriCUBE to every surgery center and hospital in Minnesota — and beyond.';
+      goldenThread.value = mission;
+      $('missionInput').value = mission;
+      $('apiKey').value = localStorage.getItem('flowos_apikey') || '';
+    }
+    
+    function loadTodayLog() {
+      const today = new Date().toISOString().split('T')[0];
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      if (logs[today]) {
+        todayLog = logs[today];
+        currentPrompt = Object.keys(todayLog).length;
+        if (currentPrompt >= PROMPTS.length) currentPrompt = PROMPTS.length;
+      }
+    }
+    
+    function saveTodayLog() {
+      const today = new Date().toISOString().split('T')[0];
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      logs[today] = todayLog;
+      localStorage.setItem('flowos_logs', JSON.stringify(logs));
+    }
+    
+    // Navigation
+    function setupNav() {
+      document.querySelectorAll('nav button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+          btn.classList.add('active');
+          $(btn.dataset.tab).classList.add('active');
+          if (btn.dataset.tab === 'report') renderLogs();
+        });
+      });
+    }
+    
+    // Chat
+    function setupChat() {
+      renderChatHistory();
+      if (currentPrompt < PROMPTS.length) {
+        addBotMessage(PROMPTS[currentPrompt].text);
+      } else {
+        addBotMessage("All logged for today. Good work. Go rest or tackle a Side Quest.");
+      }
+      
+      $('sendBtn').addEventListener('click', sendMessage);
+      userInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+      });
+    }
+    
+    function renderChatHistory() {
+      chat.innerHTML = '';
+      for (let i = 0; i < currentPrompt; i++) {
+        addBotMessage(PROMPTS[i].text, false);
+        if (todayLog[PROMPTS[i].key]) {
+          addUserMessage(todayLog[PROMPTS[i].key], false);
+        }
+      }
+    }
+    
+    function addBotMessage(text, scroll = true) {
+      const div = document.createElement('div');
+      div.className = 'message bot';
+      div.textContent = text;
+      chat.appendChild(div);
+      if (scroll) chat.scrollTop = chat.scrollHeight;
+    }
+    
+    function addUserMessage(text, scroll = true) {
+      const div = document.createElement('div');
+      div.className = 'message user';
+      div.textContent = text;
+      chat.appendChild(div);
+      if (scroll) chat.scrollTop = chat.scrollHeight;
+    }
+    
+    function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text || currentPrompt >= PROMPTS.length) return;
+      
+      addUserMessage(text);
+      todayLog[PROMPTS[currentPrompt].key] = text;
+      saveTodayLog();
+      currentPrompt++;
+      userInput.value = '';
+      
+      setTimeout(() => {
+        if (currentPrompt < PROMPTS.length) {
+          addBotMessage(PROMPTS[currentPrompt].text);
+        } else {
+          addBotMessage("All logged for today. Good work. Go rest or tackle a Side Quest.");
+        }
+      }, 400);
+    }
+    
+    // Voice
+    function setupVoice() {
+      const mic = $('micBtn');
+      if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        mic.style.display = 'none';
+        return;
+      }
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onresult = e => {
+        userInput.value = e.results[0][0].transcript;
+        mic.classList.remove('recording');
+      };
+      recognition.onerror = () => mic.classList.remove('recording');
+      recognition.onend = () => mic.classList.remove('recording');
+      
+      mic.addEventListener('click', () => {
+        if (mic.classList.contains('recording')) {
+          recognition.stop();
+        } else {
+          recognition.start();
+          mic.classList.add('recording');
+        }
+      });
+    }
+    
+    // Timer
+    function setupTimer() {
+      updateTimerDisplay();
+      
+      $('startBtn').addEventListener('click', startTimer);
+      $('pauseBtn').addEventListener('click', pauseTimer);
+      $('resetBtn').addEventListener('click', resetTimer);
+      
+      document.querySelectorAll('.timer-presets button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          timerSeconds = parseInt(btn.dataset.mins) * 60;
+          timerMode = btn.dataset.mode;
+          updateTimerDisplay();
+          updateTimerMode();
+        });
+      });
+    }
+    
+    function updateTimerDisplay() {
+      const mins = Math.floor(timerSeconds / 60);
+      const secs = timerSeconds % 60;
+      timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    function updateTimerMode() {
+      timerModeEl.textContent = timerMode === 'grind' ? 'The Grind' : 'Side Quest';
+      timerModeEl.className = 'timer-mode ' + timerMode;
+    }
+    
+    function startTimer() {
+      if (timerRunning) return;
+      timerRunning = true;
+      $('startBtn').style.display = 'none';
+      $('pauseBtn').style.display = 'inline-block';
+      
+      timerInterval = setInterval(() => {
+        timerSeconds--;
+        updateTimerDisplay();
+        if (timerSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerRunning = false;
+          alert(timerMode === 'grind' 
+            ? "Grind complete! You've earned a Side Quest." 
+            : "Side Quest over! Time to get back to work.");
+          $('startBtn').style.display = 'inline-block';
+          $('pauseBtn').style.display = 'none';
+        }
+      }, 1000);
+    }
+    
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      timerRunning = false;
+      $('startBtn').style.display = 'inline-block';
+      $('pauseBtn').style.display = 'none';
+    }
+    
+    function resetTimer() {
+      pauseTimer();
+      timerSeconds = timerMode === 'grind' ? 45 * 60 : 30 * 60;
+      updateTimerDisplay();
+    }
+    
+    // Report
+    function setupReport() {
+      $('generateBtn').addEventListener('click', generateReport);
+      $('copyBtn').addEventListener('click', copyReport);
+    }
+    
+    function renderLogs() {
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      const list = $('logsList');
+      list.innerHTML = '';
+      
+      const week = getThisWeekDates();
+      let hasLogs = false;
+      
+      week.forEach(date => {
+        if (logs[date]) {
+          hasLogs = true;
+          const entry = logs[date];
+          const div = document.createElement('div');
+          div.className = 'log-entry';
+          div.innerHTML = `
+            <div class="date">${formatDate(date)}</div>
+            ${entry.win ? `<p><strong>Win:</strong> ${entry.win}</p>` : ''}
+            ${entry.grind ? `<p><strong>Grind:</strong> ${entry.grind}</p>` : ''}
+            ${entry.values ? `<p><strong>Values:</strong> ${entry.values}</p>` : ''}
+            ${entry.sidequest ? `<p><strong>Side Quest:</strong> ${entry.sidequest}</p>` : ''}
+            ${entry.next ? `<p><strong>Next:</strong> ${entry.next}</p>` : ''}
+          `;
+          list.appendChild(div);
+        }
+      });
+      
+      if (!hasLogs) {
+        list.innerHTML = '<p style="color:#666;text-align:center;">No logs this week yet.</p>';
+      }
+      
+      $('generateBtn').disabled = !hasLogs;
+    }
+    
+    function getThisWeekDates() {
+      const dates = [];
+      const now = new Date();
+      const day = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+      
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+      return dates;
+    }
+    
+    function formatDate(dateStr) {
+      return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+    
+    async function generateReport() {
+      const apiKey = localStorage.getItem('flowos_apikey');
+      if (!apiKey) {
+        alert('Add your OpenAI API key in Settings first.');
+        return;
+      }
+      
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      const week = getThisWeekDates();
+      let logsText = '';
+      
+      week.forEach(date => {
+        if (logs[date]) {
+          logsText += `\n${formatDate(date)}:\n`;
+          const e = logs[date];
+          if (e.win) logsText += `- Win: ${e.win}\n`;
+          if (e.grind) logsText += `- Challenge: ${e.grind}\n`;
+          if (e.values) logsText += `- Values: ${e.values}\n`;
+          if (e.sidequest) logsText += `- Side Quest: ${e.sidequest}\n`;
+          if (e.next) logsText += `- Next: ${e.next}\n`;
+        }
+      });
+      
+      $('generateBtn').disabled = true;
+      $('generateBtn').textContent = 'Generating...';
+      
+      try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{
+              role: 'system',
+              content: 'You are a professional assistant. Synthesize the daily work logs into a concise Weekly Impact Report suitable for sending to a manager. Use bullet points. Tone: professional, positive, forward-moving. Title it "Weekly Impact Report" with the date range.'
+            }, {
+              role: 'user',
+              content: `Here are my daily logs for this week:\n${logsText}\n\nPlease generate my Weekly Impact Report.`
+            }]
+          })
+        });
+        
+        const data = await res.json();
+        const report = data.choices[0].message.content;
+        
+        $('reportOutput').textContent = report;
+        $('reportOutput').classList.add('visible');
+        $('copyBtn').classList.add('visible');
+      } catch (err) {
+        alert('Error generating report. Check your API key.');
+      }
+      
+      $('generateBtn').disabled = false;
+      $('generateBtn').textContent = 'Generate Weekly Report';
+    }
+    
+    function copyReport() {
+      navigator.clipboard.writeText($('reportOutput').textContent);
+      showToast('Copied!');
+    }
+    
+    // Settings
+    function setupSettings() {
+      $('apiKey').addEventListener('change', e => {
+        localStorage.setItem('flowos_apikey', e.target.value);
+        showToast();
+      });
+      
+      $('missionInput').addEventListener('change', e => {
+        localStorage.setItem('flowos_mission', e.target.value);
+        goldenThread.value = e.target.value;
+        showToast();
+      });
+      
+      goldenThread.addEventListener('change', e => {
+        localStorage.setItem('flowos_mission', e.target.value);
+        $('missionInput').value = e.target.value;
+      });
+    }
+    
+    function showToast(msg = 'Saved!') {
+      const toast = $('toast');
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 1500);
+    }
+    
+    init();
+  </script>
+</body>
+</html>
