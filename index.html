@@ -262,6 +262,16 @@
   </style>
 </head>
 <body>
+  <!-- Password Gate -->
+  <div id="passwordGate" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;">
+    <h1 style="color:#d4af37;margin-bottom:8px;">flowOS</h1>
+    <p style="color:#666;margin-bottom:24px;">Enter password to continue</p>
+    <input type="password" id="passwordInput" placeholder="Password" style="padding:12px 16px;width:200px;border:1px solid #333;border-radius:8px;background:#1a1a1a;color:#e0e0e0;font-size:16px;text-align:center;" />
+    <button id="passwordBtn" style="margin-top:12px;padding:12px 24px;background:#d4af37;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Enter</button>
+    <p id="passwordError" style="color:#e74c3c;margin-top:12px;display:none;">Incorrect password</p>
+  </div>
+
+  <div id="mainApp" style="display:none;">
   <div class="golden-thread">
     <input type="text" id="goldenThread" placeholder="Your mission statement..." />
   </div>
@@ -324,8 +334,41 @@
   </main>
   
   <div class="save-toast" id="toast">Saved!</div>
+  </div><!-- end mainApp -->
   
   <script>
+    // Password Protection
+    const PASS_HASH = 'f5bfed8698ea085f277ceda87a20fff62ab66a2557887af7ffd90d56d7b5cc13';
+    const storedAuth = localStorage.getItem('flowos_auth');
+    
+    async function hashPass(pass) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(pass);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    
+    async function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      const hash = await hashPass(input);
+      if (hash === PASS_HASH || storedAuth === PASS_HASH) {
+        localStorage.setItem('flowos_auth', PASS_HASH);
+        document.getElementById('passwordGate').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+      } else {
+        document.getElementById('passwordError').style.display = 'block';
+      }
+    }
+    
+    if (storedAuth === PASS_HASH) {
+      document.getElementById('passwordGate').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
+    }
+    
+    document.getElementById('passwordBtn').addEventListener('click', checkPassword);
+    document.getElementById('passwordInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') checkPassword();
+    });
     // State
     const PROMPTS = [
       { key: 'win', text: "Ready to log the win? What was the single best thing you accomplished today?" },
