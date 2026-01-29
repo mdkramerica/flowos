@@ -352,6 +352,11 @@
         <label>Golden Thread (Mission)</label>
         <input type="text" id="missionInput" placeholder="Building a life worth living..." />
       </div>
+      <div class="settings-group">
+        <label>Cloud Sync</label>
+        <button id="syncBtn" style="padding:12px 20px;background:#27ae60;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Sync Local Logs to Cloud</button>
+        <p style="color:#666;font-size:12px;margin-top:8px;">Push any local-only logs to Supabase for cross-device access.</p>
+      </div>
     </section>
   </main>
   
@@ -359,6 +364,37 @@
   </div><!-- end mainApp -->
   
   <script>
+    // Supabase Config
+    const SUPABASE_URL = 'https://tokbftruhvkdhdcoojdh.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_87_HG9epH6Z1eGEUjsOTXA_dtctX2H-';
+    
+    // Supabase helper
+    async function supabaseFetch(endpoint, options = {}) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {
+        ...options,
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': options.prefer || 'return=representation',
+          ...options.headers
+        }
+      });
+      if (!res.ok) return null;
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    }
+    
+    // Get or create user ID (persistent per device, syncs across devices via password)
+    function getUserId() {
+      let userId = localStorage.getItem('flowos_user_id');
+      if (!userId) {
+        userId = 'user_' + crypto.randomUUID();
+        localStorage.setItem('flowos_user_id', userId);
+      }
+      return userId;
+    }
+    
     // Password Protection
     const PASS_HASH = 'f5bfed8698ea085f277ceda87a20fff62ab66a2557887af7ffd90d56d7b5cc13';
     const storedAuth = localStorage.getItem('flowos_auth');
@@ -416,15 +452,45 @@
     const timerModeEl = $('timerMode');
     
     // Init
-    function init() {
+    async function init() {
       loadSettings();
-      loadTodayLog();
+      await loadTodayLog();
       setupNav();
       setupChat();
       setupTimer();
       setupReport();
       setupSettings();
       setupVoice();
+    }
+    
+    // Sync all local logs to Supabase
+    async function syncAllToSupabase() {
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      const userId = getUserId();
+      let synced = 0;
+      
+      for (const [date, entry] of Object.entries(logs)) {
+        if (!entry.win && !entry.grind && !entry.values && !entry.sidequest && !entry.next) continue;
+        try {
+          const payload = {
+            user_id: userId,
+            log_date: date,
+            win: entry.win || null,
+            grind: entry.grind || null,
+            values: entry.values || null,
+            sidequest: entry.sidequest || null,
+            next: entry.next || null,
+            updated_at: new Date().toISOString()
+          };
+          await supabaseFetch('flowos_logs', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Prefer': 'resolution=merge-duplicates' }
+          });
+          synced++;
+        } catch (e) { console.log('Failed to sync', date); }
+      }
+      return synced;
     }
     
     function loadSettings() {
@@ -434,8 +500,31 @@
       $('apiKey').value = localStorage.getItem('flowos_apikey') || '';
     }
     
-    function loadTodayLog() {
+    async function loadTodayLog() {
       const today = new Date().toISOString().split('T')[0];
+      
+      // Try to load from Supabase first
+      try {
+        const data = await supabaseFetch(`flowos_logs?user_id=eq.${getUserId()}&log_date=eq.${today}&select=*`);
+        if (data && data.length > 0) {
+          const row = data[0];
+          todayLog = {};
+          if (row.win) todayLog.win = row.win;
+          if (row.grind) todayLog.grind = row.grind;
+          if (row.values) todayLog.values = row.values;
+          if (row.sidequest) todayLog.sidequest = row.sidequest;
+          if (row.next) todayLog.next = row.next;
+          currentPrompt = Object.keys(todayLog).length;
+          if (currentPrompt >= PROMPTS.length) currentPrompt = PROMPTS.length;
+          // Sync to localStorage
+          const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+          logs[today] = todayLog;
+          localStorage.setItem('flowos_logs', JSON.stringify(logs));
+          return;
+        }
+      } catch (e) { console.log('Supabase load failed, using localStorage'); }
+      
+      // Fallback to localStorage
       const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       if (logs[today]) {
         todayLog = logs[today];
@@ -444,11 +533,30 @@
       }
     }
     
-    function saveTodayLog() {
+    async function saveTodayLog() {
       const today = new Date().toISOString().split('T')[0];
       const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       logs[today] = todayLog;
       localStorage.setItem('flowos_logs', JSON.stringify(logs));
+      
+      // Sync to Supabase
+      try {
+        const payload = {
+          user_id: getUserId(),
+          log_date: today,
+          win: todayLog.win || null,
+          grind: todayLog.grind || null,
+          values: todayLog.values || null,
+          sidequest: todayLog.sidequest || null,
+          next: todayLog.next || null,
+          updated_at: new Date().toISOString()
+        };
+        await supabaseFetch('flowos_logs', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Prefer': 'resolution=merge-duplicates' }
+        });
+      } catch (e) { console.log('Supabase save failed'); }
     }
     
     // Navigation
@@ -624,26 +732,61 @@
       $('logFilter').addEventListener('change', renderLogs);
     }
     
-    function renderLogs() {
-      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+    async function renderLogs() {
       const list = $('logsList');
-      list.innerHTML = '';
+      list.innerHTML = '<p style="color:#666;text-align:center;">Loading...</p>';
       
       const filter = $('logFilter').value;
-      let datesToShow;
+      let logs = {};
       
+      // Try Supabase first
+      try {
+        let query = `flowos_logs?user_id=eq.${getUserId()}&select=*&order=log_date.desc`;
+        if (filter === 'week') {
+          const week = getThisWeekDates();
+          const start = week[0];
+          const end = week[week.length - 1];
+          query += `&log_date=gte.${start}&log_date=lte.${end}`;
+        }
+        const data = await supabaseFetch(query);
+        if (data && data.length > 0) {
+          data.forEach(row => {
+            logs[row.log_date] = {
+              win: row.win,
+              grind: row.grind,
+              values: row.values,
+              sidequest: row.sidequest,
+              next: row.next
+            };
+          });
+          // Sync to localStorage
+          const localLogs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+          Object.assign(localLogs, logs);
+          localStorage.setItem('flowos_logs', JSON.stringify(localLogs));
+        }
+      } catch (e) { 
+        console.log('Supabase fetch failed, using localStorage');
+        logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      }
+      
+      // If Supabase returned nothing, fall back to localStorage
+      if (Object.keys(logs).length === 0) {
+        logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
+      }
+      
+      list.innerHTML = '';
+      
+      let datesToShow;
       if (filter === 'all') {
-        // Show all dates, sorted newest first
         datesToShow = Object.keys(logs).sort().reverse();
       } else {
-        // Show this week only
         datesToShow = getThisWeekDates();
       }
       
       let hasLogs = false;
       
       datesToShow.forEach(date => {
-        if (logs[date]) {
+        if (logs[date] && (logs[date].win || logs[date].grind || logs[date].values || logs[date].sidequest || logs[date].next)) {
           hasLogs = true;
           const entry = logs[date];
           const div = document.createElement('div');
@@ -783,6 +926,15 @@
       goldenThread.addEventListener('change', e => {
         localStorage.setItem('flowos_mission', e.target.value);
         $('missionInput').value = e.target.value;
+      });
+      
+      $('syncBtn').addEventListener('click', async () => {
+        $('syncBtn').textContent = 'Syncing...';
+        $('syncBtn').disabled = true;
+        const count = await syncAllToSupabase();
+        $('syncBtn').textContent = 'Sync Local Logs to Cloud';
+        $('syncBtn').disabled = false;
+        showToast(`Synced ${count} logs!`);
       });
     }
     
