@@ -385,14 +385,9 @@
       return text ? JSON.parse(text) : null;
     }
     
-    // Get or create user ID (persistent per device, syncs across devices via password)
+    // User ID is derived from password hash (same password = same user across devices)
     function getUserId() {
-      let userId = localStorage.getItem('flowos_user_id');
-      if (!userId) {
-        userId = 'user_' + crypto.randomUUID();
-        localStorage.setItem('flowos_user_id', userId);
-      }
-      return userId;
+      return 'user_' + PASS_HASH.substring(0, 16);
     }
     
     // Password Protection
