@@ -329,7 +329,13 @@
     
     <!-- Report -->
     <section id="report" class="report-section">
-      <h2>This Week's Logs</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2>Logs</h2>
+        <select id="logFilter" style="padding:8px 12px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#e0e0e0;">
+          <option value="week">This Week</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
       <div class="logs-list" id="logsList"></div>
       <button class="generate-btn" id="generateBtn">Generate Weekly Report</button>
       <div class="report-output" id="reportOutput"></div>
@@ -615,6 +621,7 @@
     function setupReport() {
       $('generateBtn').addEventListener('click', generateReport);
       $('copyBtn').addEventListener('click', copyReport);
+      $('logFilter').addEventListener('change', renderLogs);
     }
     
     function renderLogs() {
@@ -622,10 +629,20 @@
       const list = $('logsList');
       list.innerHTML = '';
       
-      const week = getThisWeekDates();
+      const filter = $('logFilter').value;
+      let datesToShow;
+      
+      if (filter === 'all') {
+        // Show all dates, sorted newest first
+        datesToShow = Object.keys(logs).sort().reverse();
+      } else {
+        // Show this week only
+        datesToShow = getThisWeekDates();
+      }
+      
       let hasLogs = false;
       
-      week.forEach(date => {
+      datesToShow.forEach(date => {
         if (logs[date]) {
           hasLogs = true;
           const entry = logs[date];
@@ -644,7 +661,9 @@
       });
       
       if (!hasLogs) {
-        list.innerHTML = '<p style="color:#666;text-align:center;">No logs this week yet.</p>';
+        list.innerHTML = filter === 'all' 
+          ? '<p style="color:#666;text-align:center;">No logs yet. Start logging!</p>'
+          : '<p style="color:#666;text-align:center;">No logs this week yet.</p>';
       }
       
       $('generateBtn').disabled = !hasLogs;
