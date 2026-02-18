@@ -496,7 +496,7 @@
     }
     
     async function loadTodayLog() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDate();
       
       // Try to load from Supabase first
       try {
@@ -529,7 +529,7 @@
     }
     
     async function saveTodayLog() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDate();
       const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       logs[today] = todayLog;
       localStorage.setItem('flowos_logs', JSON.stringify(logs));
@@ -804,6 +804,13 @@
       $('generateBtn').disabled = !hasLogs;
     }
     
+    function getLocalDate(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
     function getThisWeekDates() {
       const dates = [];
       const now = new Date();
@@ -814,7 +821,7 @@
       for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
-        dates.push(d.toISOString().split('T')[0]);
+        dates.push(getLocalDate(d));
       }
       return dates;
     }
