@@ -737,6 +737,9 @@
       // Supabase sync is optional/backup only
       const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       
+      console.log('renderLogs called, filter:', filter);
+      console.log('All dates in localStorage:', Object.keys(logs).sort());
+      
       list.innerHTML = '';
       
       let datesToShow;
@@ -745,6 +748,8 @@
       } else {
         datesToShow = getThisWeekDates();
       }
+      
+      console.log('Dates to show:', datesToShow);
       
       let hasLogs = false;
       
@@ -798,7 +803,9 @@
     }
     
     function formatDate(dateStr) {
-      return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
     
     async function generateReport() {
