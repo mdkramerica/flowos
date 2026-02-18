@@ -733,6 +733,7 @@
       
       const filter = $('logFilter').value;
       let logs = {};
+      let usedSupabase = false;
       
       // Try Supabase first
       try {
@@ -745,6 +746,7 @@
         }
         const data = await supabaseFetch(query);
         if (data && data.length > 0) {
+          usedSupabase = true;
           data.forEach(row => {
             logs[row.log_date] = {
               win: row.win,
@@ -754,18 +756,13 @@
               next: row.next
             };
           });
-          // Sync to localStorage
-          const localLogs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
-          Object.assign(localLogs, logs);
-          localStorage.setItem('flowos_logs', JSON.stringify(localLogs));
         }
       } catch (e) { 
         console.log('Supabase fetch failed, using localStorage');
-        logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       }
       
-      // If Supabase returned nothing, fall back to localStorage
-      if (Object.keys(logs).length === 0) {
+      // If Supabase returned nothing or failed, use localStorage
+      if (!usedSupabase) {
         logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       }
       
