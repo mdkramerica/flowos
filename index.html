@@ -732,39 +732,10 @@
       list.innerHTML = '<p style="color:#666;text-align:center;">Loading...</p>';
       
       const filter = $('logFilter').value;
-      let logs = {};
-      let usedSupabase = false;
       
-      // Try Supabase first
-      try {
-        let query = `flowos_logs?user_id=eq.${getUserId()}&select=*&order=log_date.desc`;
-        if (filter === 'week') {
-          const week = getThisWeekDates();
-          const start = week[0];
-          const end = week[week.length - 1];
-          query += `&log_date=gte.${start}&log_date=lte.${end}`;
-        }
-        const data = await supabaseFetch(query);
-        if (data && data.length > 0) {
-          usedSupabase = true;
-          data.forEach(row => {
-            logs[row.log_date] = {
-              win: row.win,
-              grind: row.grind,
-              values: row.values,
-              sidequest: row.sidequest,
-              next: row.next
-            };
-          });
-        }
-      } catch (e) { 
-        console.log('Supabase fetch failed, using localStorage');
-      }
-      
-      // If Supabase returned nothing or failed, use localStorage
-      if (!usedSupabase) {
-        logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
-      }
+      // Always use localStorage (it's the source of truth for now)
+      // Supabase sync is optional/backup only
+      const logs = JSON.parse(localStorage.getItem('flowos_logs') || '{}');
       
       list.innerHTML = '';
       
